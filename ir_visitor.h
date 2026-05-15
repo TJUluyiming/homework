@@ -4,7 +4,6 @@
 #include "parser.h"
 #include <map>
 
-// 模拟文档附录 2.2 的中端接口
 struct Type { std::string name = "i32"; };
 struct Value {};
 struct ConstantInt { static Value* get(int v) { return new Value(); } };
