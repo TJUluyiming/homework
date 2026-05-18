@@ -1,28 +1,28 @@
+// parser.h
 #ifndef PARSER_H
 #define PARSER_H
-
 #include "lexer.h"
 #include <stack>
-#include <memory>
+#include <map>
+#include <vector>
 
 struct ParseTree {
     std::string type;
     std::string text;
     std::vector<ParseTree*> children;
-    bool isGlobal = true; // 默认为全局变量
     ParseTree(std::string t, std::string txt = "") : type(t), text(txt) {}
-    ~ParseTree() { for(auto c : children) delete c; }
+    ~ParseTree() { for(auto* c : children) delete c; }
 };
 
 class SLRParser {
 private:
-    struct Action { char type; int val; }; 
+    struct Action { char type; int val; };
     std::stack<int> state_stack;
-    std::stack<ParseTree*> symbol_stack;
-    std::map<int, std::pair<std::string, int>> productions;
-
-    Action getAction(int state, const std::string& symbol);
-    int getGoto(int state, const std::string& nt);
+    std::stack<std::string> sym_stack;
+    std::stack<ParseTree*> tree_stack;
+    std::map<int, std::pair<std::string, int>> prods;
+    Action getAction(int s, const std::string& a);
+    int getGoto(int s, const std::string& nt);
 
 public:
     SLRParser();
