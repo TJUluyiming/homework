@@ -1,10 +1,13 @@
 // parser.h
 #ifndef PARSER_H
 #define PARSER_H
+
 #include "lexer.h"
 #include <stack>
 #include <map>
 #include <vector>
+#include <string>
+#include <set>
 
 struct ParseTree {
     std::string type;
@@ -16,13 +19,42 @@ struct ParseTree {
 
 class SLRParser {
 private:
-    struct Action { char type; int val; };
-    std::stack<int> state_stack;
-    std::stack<std::string> sym_stack;
-    std::stack<ParseTree*> tree_stack;
-    std::map<int, std::pair<std::string, int>> prods;
-    Action getAction(int s, const std::string& a);
-    int getGoto(int s, const std::string& nt);
+    struct Production {
+        int id;
+        std::string lhs;
+        std::vector<std::string> rhs;
+    };
+    
+    struct LRItem {
+        int prod_id;
+        int dot;
+        bool operator<(const LRItem& o) const {
+            if (prod_id != o.prod_id) return prod_id < o.prod_id;
+            return dot < o.dot;
+        }
+        bool operator==(const LRItem& o) const {
+            return prod_id == o.prod_id && dot == o.dot;
+        }
+    };
+    
+    struct Action { char type; int val; }; 
+    
+    std::vector<Production> prods_list;
+    std::map<std::string, std::vector<int>> prod_map;
+    std::set<std::string> terminals;
+    std::set<std::string> non_terminals;
+    
+    std::map<std::string, std::set<std::string>> first_sets;
+    std::map<std::string, std::set<std::string>> follow_sets;
+    std::vector<std::set<LRItem>> states;
+    
+    std::vector<std::map<std::string, Action>> action_table;
+    std::vector<std::map<std::string, int>> goto_table;
+    
+    std::set<LRItem> getClosure(const std::set<LRItem>& inst);
+    std::set<LRItem> getGotoState(const std::set<LRItem>& state, const std::string& sym);
+    void buildEngine();
+    std::string getSymbolName(const Token& t);
 
 public:
     SLRParser();
