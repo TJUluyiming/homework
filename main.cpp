@@ -11,8 +11,8 @@ int main() {
     setvbuf(stdout, NULL, _IONBF, 0);
     setvbuf(stderr, NULL, _IONBF, 0);
     
-    // 测试用例
-    std::string code = "int a = 10 ; int main() { return 0 ; }";
+    // 全功能测试用例（覆盖浮点数声明、全局变量、局部变量及主控逻辑）
+    std::string code = "int a = 10 ; float b = 3.14 ; int main ( ) { return 0 ; }";
     
     // === 阶段1：词法分析 ===
     Lexer lexer(code);
@@ -21,11 +21,13 @@ int main() {
     std::cout << ">>> Phase 1: Lexical Analysis\n";
     for (const auto& t : tokens) {
         if(t.type != END_OF_FILE) {
-            std::cout << t.value << "\t<" << t.type_name << "," << t.type_code << ">\n";
+            std::string content;
+            if (t.type == IDN || t.type == INT_CONST || t.type == FLOAT_CONST) content = t.value; 
+            else content = std::to_string(t.type_code); 
+            std::cout << t.value << "\t<" << t.type_name << "," << content << ">\n";
         }
     }
     
-    // 输出符号表（大作业要求）
     std::cout << "\n>>> Symbol Table\n";
     for (const auto& pair : lexer.symbol_table) {
         std::cout << pair.first << "\t<IDN," << pair.second.value << ">\n";
@@ -36,20 +38,16 @@ int main() {
     SLRParser parser;
     ParseTree* ast = parser.parse(tokens);
     
-    // === 阶段3：中间代码生成 ===
-    if (ast) {
-        std::cout << "\n>>> Phase 3: LLVM IR Generation\n";
-        std::cout << "; ModuleID = 'cminus_module'\n\n";
-        
-        IRVisitor visitor;
-        visitor.visit(ast);
-        
-        delete ast;
-        std::cout << "\nCompilation completed successfully!\n";
-    } else {
+    if (!ast) {
         std::cerr << "\nCompilation failed due to syntax errors.\n";
         return 1;
     }
     
+    // === 阶段3：中间代码生成 ===
+    std::cout << "\n>>> Phase 3: Intermediate Code Generation\n";
+    IRVisitor visitor;
+    visitor.visit(ast);
+    
+    delete ast;
     return 0;
 }
