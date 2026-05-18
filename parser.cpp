@@ -1,828 +1,339 @@
 // parser.cpp
 #include "parser.h"
 #include <iostream>
+#include <algorithm>
 
 SLRParser::SLRParser() {
-    // ==============================================
-    // 严格按照大作业附录36条文法规则定义产生式
-    // 编号与大作业完全一致，确保规约输出正确
-    // ==============================================
-    prods[1] = {"Program", 1};                // 1. Program -> compUnit
-    prods[2] = {"compUnit", 2};               // 2. compUnit -> compUnit decl
-    prods[3] = {"compUnit", 2};               // 3. compUnit -> compUnit funcDef
-    prods[4] = {"compUnit", 0};               // 4. compUnit -> ε
-    prods[5] = {"decl", 1};                   // 5. decl -> constDecl
-    prods[6] = {"decl", 1};                   // 6. decl -> varDecl
-    prods[7] = {"constDecl", 4};              // 7. constDecl -> const bType constDef ;
-    prods[8] = {"bType", 1};                  // 8. bType -> int
-    prods[9] = {"bType", 1};                  // 9. bType -> float
-    prods[10] = {"constDef", 3};              // 10. constDef -> Ident = constInitVal
-    prods[11] = {"constInitVal", 1};          // 11. constInitVal -> constExp
-    prods[12] = {"varDecl", 3};               // 12. varDecl -> bType varDef ;
-    prods[13] = {"varDef", 1};                // 13. varDef -> Ident
-    prods[14] = {"varDef", 3};                // 14. varDef -> Ident = initVal
-    prods[15] = {"initVal", 1};               // 15. initVal -> exp
-    prods[16] = {"funcDef", 6};               // 16. funcDef -> funcType Ident ( ) block
-    prods[17] = {"funcDef", 7};               // 17. funcDef -> funcType Ident ( funcFParams ) block
-    prods[18] = {"funcType", 1};              // 18. funcType -> void
-    prods[19] = {"funcType", 1};              // 19. funcType -> int
-    prods[20] = {"funcFParams", 2};           // 20. funcFParams -> funcFParams , funcFParam
-    prods[21] = {"funcFParams", 1};           // 21. funcFParams -> funcFParam
-    prods[22] = {"funcFParam", 2};            // 22. funcFParam -> bType Ident
-    prods[23] = {"block", 3};                 // 23. block -> { blockItems }
-    prods[24] = {"blockItems", 2};            // 24. blockItems -> blockItems blockItem
-    prods[25] = {"blockItems", 0};            // 25. blockItems -> ε
-    prods[26] = {"blockItem", 1};             // 26. blockItem -> decl
-    prods[27] = {"blockItem", 1};             // 27. blockItem -> stmt
-    prods[28] = {"stmt", 4};                  // 28. stmt -> lVal = exp ;
-    prods[29] = {"stmt", 2};                  // 29. stmt -> exp ;
-    prods[30] = {"stmt", 1};                  // 30. stmt -> ;
-    prods[31] = {"stmt", 1};                  // 31. stmt -> block
-    prods[32] = {"stmt", 5};                  // 32. stmt -> if ( cond ) stmt
-    prods[33] = {"stmt", 7};                  // 33. stmt -> if ( cond ) stmt else stmt
-    prods[34] = {"stmt", 3};                  // 34. stmt -> return ;
-    prods[35] = {"stmt", 4};                  // 35. stmt -> return exp ;
-    prods[36] = {"exp", 1};                   // 36. exp -> addExp
-    prods[37] = {"cond", 1};                  // 37. cond -> lOrExp
-    prods[38] = {"lVal", 1};                  // 38. lVal -> Ident
-    prods[39] = {"primaryExp", 3};            // 39. primaryExp -> ( exp )
-    prods[40] = {"primaryExp", 1};            // 40. primaryExp -> lVal
-    prods[41] = {"primaryExp", 1};            // 41. primaryExp -> number
-    prods[42] = {"number", 1};                // 42. number -> IntConst
-    prods[43] = {"number", 1};                // 43. number -> floatConst
-    prods[44] = {"unaryExp", 1};              // 44. unaryExp -> primaryExp
-    prods[45] = {"unaryExp", 3};              // 45. unaryExp -> Ident ( )
-    prods[46] = {"unaryExp", 4};              // 46. unaryExp -> Ident ( funcRParams )
-    prods[47] = {"unaryExp", 2};              // 47. unaryExp -> unaryOp unaryExp
-    prods[48] = {"unaryOp", 1};               // 48. unaryOp -> +
-    prods[49] = {"unaryOp", 1};               // 49. unaryOp -> -
-    prods[50] = {"unaryOp", 1};               // 50. unaryOp -> !
-    prods[51] = {"funcRParams", 2};           // 51. funcRParams -> funcRParams , funcRParam
-    prods[52] = {"funcRParams", 1};           // 52. funcRParams -> funcRParam
-    prods[53] = {"funcRParam", 1};            // 53. funcRParam -> exp
-    prods[54] = {"mulExp", 1};                // 54. mulExp -> unaryExp
-    prods[55] = {"mulExp", 3};                // 55. mulExp -> mulExp * unaryExp
-    prods[56] = {"mulExp", 3};                // 56. mulExp -> mulExp / unaryExp
-    prods[57] = {"mulExp", 3};                // 57. mulExp -> mulExp % unaryExp
-    prods[58] = {"addExp", 1};                // 58. addExp -> mulExp
-    prods[59] = {"addExp", 3};                // 59. addExp -> addExp + mulExp
-    prods[60] = {"addExp", 3};                // 60. addExp -> addExp - mulExp
-    prods[61] = {"relExp", 1};                // 61. relExp -> addExp
-    prods[62] = {"relExp", 3};                // 62. relExp -> relExp < addExp
-    prods[63] = {"relExp", 3};                // 63. relExp -> relExp > addExp
-    prods[64] = {"relExp", 3};                // 64. relExp -> relExp <= addExp
-    prods[65] = {"relExp", 3};                // 65. relExp -> relExp >= addExp
-    prods[66] = {"eqExp", 1};                 // 66. eqExp -> relExp
-    prods[67] = {"eqExp", 3};                 // 67. eqExp -> eqExp == relExp
-    prods[68] = {"eqExp", 3};                 // 68. eqExp -> eqExp != relExp
-    prods[69] = {"lAndExp", 1};               // 69. lAndExp -> eqExp
-    prods[70] = {"lAndExp", 3};               // 70. lAndExp -> lAndExp && eqExp
-    prods[71] = {"lOrExp", 1};                // 71. lOrExp -> lAndExp
-    prods[72] = {"lOrExp", 3};                // 72. lOrExp -> lOrExp || lAndExp
-    prods[73] = {"constExp", 1};              // 73. constExp -> addExp
-}
+    prods_list.push_back({0, "Program'", {"Program"}});
+    prods_list.push_back({1, "Program", {"compUnit"}});
+    prods_list.push_back({2, "compUnit", {"compUnit", "decl"}});
+    prods_list.push_back({3, "compUnit", {"compUnit", "funcDef"}});
+    prods_list.push_back({4, "compUnit", {}}); 
+    prods_list.push_back({5, "decl", {"constDecl"}});
+    prods_list.push_back({6, "decl", {"varDecl"}});
+    prods_list.push_back({7, "constDecl", {"const", "bType", "constDefs", ";"}});
+    prods_list.push_back({8, "constDefs", {"constDef"}});
+    prods_list.push_back({9, "constDefs", {"constDefs", ",", "constDef"}});
+    prods_list.push_back({10, "bType", {"int"}});
+    prods_list.push_back({11, "bType", {"float"}}); // 仅属于 bType
+    prods_list.push_back({12, "constDef", {"Ident", "=", "constInitVal"}});
+    prods_list.push_back({13, "constInitVal", {"constExp"}});
+    prods_list.push_back({14, "varDecl", {"bType", "varDefs", ";"}});
+    prods_list.push_back({15, "varDefs", {"varDef"}});
+    prods_list.push_back({16, "varDefs", {"varDefs", ",", "varDef"}});
+    prods_list.push_back({17, "varDef", {"Ident"}});
+    prods_list.push_back({18, "varDef", {"Ident", "=", "initVal"}});
+    prods_list.push_back({19, "initVal", {"exp"}});
+    prods_list.push_back({20, "funcDef", {"funcType", "Ident", "(", ")", "block"}});
+    prods_list.push_back({21, "funcDef", {"funcType", "Ident", "(", "funcFParams", ")", "block"}});
+    prods_list.push_back({22, "funcType", {"void"}});
+    prods_list.push_back({23, "funcType", {"int"}}); // int 依然属于 funcType
+    prods_list.push_back({24, "funcFParams", {"funcFParams", ",", "funcFParam"}});
+    prods_list.push_back({25, "funcFParams", {"funcFParam"}});
+    prods_list.push_back({26, "funcFParam", {"bType", "Ident"}});
+    prods_list.push_back({27, "block", {"{", "blockItems", "}"}});
+    prods_list.push_back({28, "blockItems", {"blockItems", "blockItem"}});
+    prods_list.push_back({29, "blockItems", {}}); 
+    prods_list.push_back({30, "blockItem", {"decl"}});
+    prods_list.push_back({31, "blockItem", {"stmt"}});
+    prods_list.push_back({32, "stmt", {"lVal", "=", "exp", ";"}});
+    prods_list.push_back({33, "stmt", {"exp", ";"}});
+    prods_list.push_back({34, "stmt", {";"}});
+    prods_list.push_back({35, "stmt", {"block"}});
+    prods_list.push_back({36, "stmt", {"if", "(", "cond", ")", "stmt"}});
+    prods_list.push_back({37, "stmt", {"if", "(", "cond", ")", "stmt", "else", "stmt"}});
+    prods_list.push_back({38, "stmt", {"return", ";"}});
+    prods_list.push_back({39, "stmt", {"return", "exp", ";"}});
+    prods_list.push_back({40, "exp", {"addExp"}});
+    prods_list.push_back({41, "cond", {"lOrExp"}});
+    prods_list.push_back({42, "lVal", {"Ident"}});
+    prods_list.push_back({43, "primaryExp", {"(", "exp", ")"}});
+    prods_list.push_back({44, "primaryExp", {"lVal"}});
+    prods_list.push_back({45, "primaryExp", {"number"}});
+    prods_list.push_back({46, "number", {"IntConst"}});
+    prods_list.push_back({47, "number", {"floatConst"}});
+    prods_list.push_back({48, "unaryExp", {"primaryExp"}});
+    prods_list.push_back({49, "unaryExp", {"Ident", "(", ")"}});
+    prods_list.push_back({50, "unaryExp", {"Ident", "(", "funcRParams", ")"}});
+    prods_list.push_back({51, "unaryExp", {"unaryOp", "unaryExp"}});
+    prods_list.push_back({52, "unaryOp", {"+"}});
+    prods_list.push_back({53, "unaryOp", {"-"}});
+    prods_list.push_back({54, "unaryOp", {"!"}});
+    prods_list.push_back({55, "funcRParams", {"funcRParams", ",", "funcRParam"}});
+    prods_list.push_back({56, "funcRParams", {"funcRParam"}});
+    prods_list.push_back({57, "funcRParam", {"exp"}});
+    prods_list.push_back({58, "mulExp", {"unaryExp"}});
+    prods_list.push_back({59, "mulExp", {"mulExp", "*", "unaryExp"}});
+    prods_list.push_back({60, "mulExp", {"mulExp", "/", "unaryExp"}});
+    prods_list.push_back({61, "mulExp", {"mulExp", "%", "unaryExp"}});
+    prods_list.push_back({62, "addExp", {"mulExp"}});
+    prods_list.push_back({63, "addExp", {"addExp", "+", "mulExp"}});
+    prods_list.push_back({64, "addExp", {"addExp", "-", "mulExp"}});
+    prods_list.push_back({65, "relExp", {"addExp"}});
+    prods_list.push_back({66, "relExp", {"relExp", "<", "addExp"}});
+    prods_list.push_back({67, "relExp", {"relExp", ">", "addExp"}});
+    prods_list.push_back({68, "relExp", {"relExp", "<=", "addExp"}});
+    prods_list.push_back({69, "relExp", {"relExp", ">=", "addExp"}});
+    prods_list.push_back({70, "eqExp", {"relExp"}});
+    prods_list.push_back({71, "eqExp", {"eqExp", "==", "relExp"}});
+    prods_list.push_back({72, "eqExp", {"eqExp", "!=", "relExp"}});
+    prods_list.push_back({73, "lAndExp", {"eqExp"}});
+    prods_list.push_back({74, "lAndExp", {"lAndExp", "&&", "eqExp"}});
+    prods_list.push_back({75, "lOrExp", {"lAndExp"}});
+    prods_list.push_back({76, "lOrExp", {"lOrExp", "||", "lAndExp"}});
+    prods_list.push_back({77, "constExp", {"addExp"}});
 
-SLRParser::Action SLRParser::getAction(int s, const std::string& a) {
-    // 状态0：初始状态（核心修复：先规约空compUnit）
-    if (s == 0) {
-        if (a == "$") return {'r', 4}; // compUnit -> ε
-        // 所有声明和函数定义都先触发空compUnit规约
-        if (a == "const" || a == "int" || a == "void" || a == "float") {
-            return {'r', 4};
+    for (const auto& p : prods_list) {
+        non_terminals.insert(p.lhs);
+        prod_map[p.lhs].push_back(p.id);
+    }
+    for (const auto& p : prods_list) {
+        for (const auto& sym : p.rhs) {
+            if (!non_terminals.count(sym)) terminals.insert(sym);
         }
     }
-    // 状态1：识别到const
-    if (s == 1) {
-        if (a == "int") return {'s', 2};
-        if (a == "float") return {'s', 4};
-    }
-    // 状态2：识别到int
-    if (s == 2) {
-        if (a == "IDN") return {'r', 8}; // bType -> int
-        if (a == "main") return {'r', 8};
-        if (a == "(") return {'r', 19}; // funcType -> int
-    }
-    // 状态3：识别到void
-    if (s == 3) {
-        if (a == "IDN") return {'r', 18}; // funcType -> void
-        if (a == "main") return {'r', 18};
-    }
-    // 状态4：识别到float
-    if (s == 4) {
-        if (a == "IDN") return {'r', 9}; // bType -> float
-    }
-    // 状态5：bType规约后
-    if (s == 5) {
-        if (a == "IDN") return {'s', 6};
-        if (a == "main") return {'s', 6};
-    }
-    // 状态6：识别到IDN(varDef/constDef)
-    if (s == 6) {
-        if (a == "=") return {'s', 7};
-        if (a == ";") return {'r', 13}; // varDef -> IDN
-        if (a == "(") return {'s', 8}; // 函数定义/调用
-        if (a == ",") return {'r', 13}; // 多个变量声明
-    }
-    // 状态7：识别到=
-    if (s == 7) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态8：识别到(
-    if (s == 8) {
-        if (a == ")") return {'s', 16};
-        if (a == "int") return {'s', 2};
-        if (a == "float") return {'s', 4};
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态9：识别到INT
-    if (s == 9) {
-        if (a == ";") return {'r', 14}; // varDef -> IDN = INT
-        if (a == ")") return {'r', 42}; // number -> INT
-        if (a == ",") return {'r', 42};
-        if (a == "+") return {'r', 42};
-        if (a == "-") return {'r', 42};
-        if (a == "*") return {'r', 42};
-        if (a == "/") return {'r', 42};
-        if (a == "%") return {'r', 42};
-        if (a == "<") return {'r', 42};
-        if (a == ">") return {'r', 42};
-        if (a == "<=") return {'r', 42};
-        if (a == ">=") return {'r', 42};
-        if (a == "==") return {'r', 42};
-        if (a == "!=") return {'r', 42};
-        if (a == "&&") return {'r', 42};
-        if (a == "||") return {'r', 42};
-    }
-    // 状态10：识别到FLOAT
-    if (s == 10) {
-        if (a == ";") return {'r', 14};
-        if (a == ")") return {'r', 43}; // number -> FLOAT
-        if (a == ",") return {'r', 43};
-        if (a == "+") return {'r', 43};
-        if (a == "-") return {'r', 43};
-        if (a == "*") return {'r', 43};
-        if (a == "/") return {'r', 43};
-        if (a == "%") return {'r', 43};
-        if (a == "<") return {'r', 43};
-        if (a == ">") return {'r', 43};
-        if (a == "<=") return {'r', 43};
-        if (a == ">=") return {'r', 43};
-        if (a == "==") return {'r', 43};
-        if (a == "!=") return {'r', 43};
-        if (a == "&&") return {'r', 43};
-        if (a == "||") return {'r', 43};
-    }
-    // 状态11：识别到( (表达式)
-    if (s == 11) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态12：识别到IDN(表达式)
-    if (s == 12) {
-        if (a == "=") return {'r', 38}; // lVal -> IDN
-        if (a == ")") return {'r', 40}; // primaryExp -> lVal
-        if (a == ";") return {'r', 40};
-        if (a == ",") return {'r', 40};
-        if (a == "+") return {'r', 40};
-        if (a == "-") return {'r', 40};
-        if (a == "*") return {'r', 40};
-        if (a == "/") return {'r', 40};
-        if (a == "%") return {'r', 40};
-        if (a == "<") return {'r', 40};
-        if (a == ">") return {'r', 40};
-        if (a == "<=") return {'r', 40};
-        if (a == ">=") return {'r', 40};
-        if (a == "==") return {'r', 40};
-        if (a == "!=") return {'r', 40};
-        if (a == "&&") return {'r', 40};
-        if (a == "||") return {'r', 40};
-        if (a == "(") return {'s', 8}; // 函数调用
-    }
-    // 状态13：+ (单目)
-    if (s == 13) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态14：- (单目)
-    if (s == 14) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态15：! (单目)
-    if (s == 15) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态16：) (函数参数结束)
-    if (s == 16) {
-        if (a == "{") return {'s', 17};
-    }
-    // 状态17：{ (块开始)
-    if (s == 17) {
-        if (a == "}") return {'r', 25}; // blockItems -> ε
-        if (a == "const") return {'s', 1};
-        if (a == "int") return {'s', 2};
-        if (a == "float") return {'s', 4};
-        if (a == "return") return {'s', 18};
-        if (a == "if") return {'s', 19};
-        if (a == "IDN") return {'s', 12};
-        if (a == ";") return {'s', 20};
-        if (a == "{") return {'s', 17};
-    }
-    // 状态18：return
-    if (s == 18) {
-        if (a == ";") return {'s', 21};
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态19：if
-    if (s == 19) {
-        if (a == "(") return {'s', 22};
-    }
-    // 状态20：; (空语句)
-    if (s == 20) {
-        if (a == "}") return {'r', 30}; // stmt -> ;
-        if (a == "const") return {'r', 30};
-        if (a == "int") return {'r', 30};
-        if (a == "float") return {'r', 30};
-        if (a == "return") return {'r', 30};
-        if (a == "if") return {'r', 30};
-        if (a == "IDN") return {'r', 30};
-        if (a == "{") return {'r', 30};
-        if (a == "else") return {'r', 30};
-    }
-    // 状态21：; (return ;)
-    if (s == 21) {
-        if (a == "}") return {'r', 34}; // stmt -> return ;
-        if (a == "const") return {'r', 34};
-        if (a == "int") return {'r', 34};
-        if (a == "float") return {'r', 34};
-        if (a == "return") return {'r', 34};
-        if (a == "if") return {'r', 34};
-        if (a == "IDN") return {'r', 34};
-        if (a == "{") return {'r', 34};
-        if (a == "else") return {'r', 34};
-    }
-    // 状态22：( (if条件)
-    if (s == 22) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态23：) (if条件结束)
-    if (s == 23) {
-        if (a == "const") return {'s', 1};
-        if (a == "int") return {'s', 2};
-        if (a == "float") return {'s', 4};
-        if (a == "return") return {'s', 18};
-        if (a == "if") return {'s', 19};
-        if (a == "IDN") return {'s', 12};
-        if (a == ";") return {'s', 20};
-        if (a == "{") return {'s', 17};
-    }
-    // 状态24：else
-    if (s == 24) {
-        if (a == "const") return {'s', 1};
-        if (a == "int") return {'s', 2};
-        if (a == "float") return {'s', 4};
-        if (a == "return") return {'s', 18};
-        if (a == "if") return {'s', 19};
-        if (a == "IDN") return {'s', 12};
-        if (a == ";") return {'s', 20};
-        if (a == "{") return {'s', 17};
-    }
-    // 状态25：} (块结束)
-    if (s == 25) {
-        if (a == "$") return {'r', 16}; // funcDef -> funcType IDN ( ) block
-        if (a == "}") return {'r', 31}; // stmt -> block
-        if (a == "const") return {'r', 31};
-        if (a == "int") return {'r', 31};
-        if (a == "float") return {'r', 31};
-        if (a == "return") return {'r', 31};
-        if (a == "if") return {'r', 31};
-        if (a == "IDN") return {'r', 31};
-        if (a == "{") return {'r', 31};
-        if (a == "else") return {'r', 31};
-    }
-    // 状态26：; (varDecl结束)
-    if (s == 26) {
-        if (a == "$") return {'r', 12}; // varDecl -> bType varDef ;
-        if (a == "}") return {'r', 12};
-        if (a == "const") return {'r', 12};
-        if (a == "int") return {'r', 12};
-        if (a == "void") return {'r', 12};
-        if (a == "float") return {'r', 12};
-        if (a == "return") return {'r', 12};
-        if (a == "if") return {'r', 12};
-        if (a == "IDN") return {'r', 12};
-        if (a == "{") return {'r', 12};
-        if (a == "else") return {'r', 12};
-        if (a == ",") return {'r', 12}; // 多个变量声明
-    }
-    // 状态27：; (constDecl结束)
-    if (s == 27) {
-        if (a == "$") return {'r', 7}; // constDecl -> const bType constDef ;
-        if (a == "}") return {'r', 7};
-        if (a == "const") return {'r', 7};
-        if (a == "int") return {'r', 7};
-        if (a == "void") return {'r', 7};
-        if (a == "float") return {'r', 7};
-        if (a == "return") return {'r', 7};
-        if (a == "if") return {'r', 7};
-        if (a == "IDN") return {'r', 7};
-        if (a == "{") return {'r', 7};
-        if (a == "else") return {'r', 7};
-    }
-    // 状态28：; (赋值语句结束)
-    if (s == 28) {
-        if (a == "}") return {'r', 28}; // stmt -> lVal = exp ;
-        if (a == "const") return {'r', 28};
-        if (a == "int") return {'r', 28};
-        if (a == "float") return {'r', 28};
-        if (a == "return") return {'r', 28};
-        if (a == "if") return {'r', 28};
-        if (a == "IDN") return {'r', 28};
-        if (a == "{") return {'r', 28};
-        if (a == "else") return {'r', 28};
-    }
-    // 状态29：; (表达式语句结束)
-    if (s == 29) {
-        if (a == "}") return {'r', 29}; // stmt -> exp ;
-        if (a == "const") return {'r', 29};
-        if (a == "int") return {'r', 29};
-        if (a == "float") return {'r', 29};
-        if (a == "return") return {'r', 29};
-        if (a == "if") return {'r', 29};
-        if (a == "IDN") return {'r', 29};
-        if (a == "{") return {'r', 29};
-        if (a == "else") return {'r', 29};
-    }
-    // 状态30：; (return exp ;结束)
-    if (s == 30) {
-        if (a == "}") return {'r', 35}; // stmt -> return exp ;
-        if (a == "const") return {'r', 35};
-        if (a == "int") return {'r', 35};
-        if (a == "float") return {'r', 35};
-        if (a == "return") return {'r', 35};
-        if (a == "if") return {'r', 35};
-        if (a == "IDN") return {'r', 35};
-        if (a == "{") return {'r', 35};
-        if (a == "else") return {'r', 35};
-    }
-    // 状态31：*
-    if (s == 31) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态32：/
-    if (s == 32) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态33：%
-    if (s == 33) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态34：+ (双目)
-    if (s == 34) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态35：- (双目)
-    if (s == 35) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态36：<
-    if (s == 36) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态37：>
-    if (s == 37) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态38：<=
-    if (s == 38) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态39：>=
-    if (s == 39) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态40：==
-    if (s == 40) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态41：!=
-    if (s == 41) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态42：&&
-    if (s == 42) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态43：||
-    if (s == 43) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态44：) (表达式括号结束)
-    if (s == 44) {
-        if (a == ")") return {'r', 39}; // primaryExp -> ( exp )
-        if (a == ";") return {'r', 39};
-        if (a == ",") return {'r', 39};
-        if (a == "+") return {'r', 39};
-        if (a == "-") return {'r', 39};
-        if (a == "*") return {'r', 39};
-        if (a == "/") return {'r', 39};
-        if (a == "%") return {'r', 39};
-        if (a == "<") return {'r', 39};
-        if (a == ">") return {'r', 39};
-        if (a == "<=") return {'r', 39};
-        if (a == ">=") return {'r', 39};
-        if (a == "==") return {'r', 39};
-        if (a == "!=") return {'r', 39};
-        if (a == "&&") return {'r', 39};
-        if (a == "||") return {'r', 39};
-    }
-    // 状态45：varDef规约后
-    if (s == 45) {
-        if (a == ";") return {'s', 26}; // 移进分号
-        if (a == ",") return {'s', 46}; // 多个变量声明
-    }
-    // 状态46：, (多个变量声明)
-    if (s == 46) {
-        if (a == "IDN") return {'s', 6};
-    }
-    // 状态47：constDef规约后
-    if (s == 47) {
-        if (a == ";") return {'s', 27};
-    }
-    // 状态48：exp规约后
-    if (s == 48) {
-        if (a == ";") return {'s', 29};
-        if (a == ")") return {'r', 36};
-        if (a == ",") return {'r', 36};
-        if (a == "+") return {'r', 36};
-        if (a == "-") return {'r', 36};
-        if (a == "*") return {'r', 36};
-        if (a == "/") return {'r', 36};
-        if (a == "%") return {'r', 36};
-        if (a == "<") return {'r', 36};
-        if (a == ">") return {'r', 36};
-        if (a == "<=") return {'r', 36};
-        if (a == ">=") return {'r', 36};
-        if (a == "==") return {'r', 36};
-        if (a == "!=") return {'r', 36};
-        if (a == "&&") return {'r', 36};
-        if (a == "||") return {'r', 36};
-    }
-    // 状态49：lVal规约后
-    if (s == 49) {
-        if (a == "=") return {'s', 50};
-    }
-    // 状态50：= (赋值)
-    if (s == 50) {
-        if (a == "INT") return {'s', 9};
-        if (a == "FLOAT") return {'s', 10};
-        if (a == "(") return {'s', 11};
-        if (a == "IDN") return {'s', 12};
-        if (a == "+") return {'s', 13};
-        if (a == "-") return {'s', 14};
-        if (a == "!") return {'s', 15};
-    }
-    // 状态51：赋值exp规约后
-    if (s == 51) {
-        if (a == ";") return {'s', 28};
-    }
-    // 状态52：cond规约后
-    if (s == 52) {
-        if (a == ")") return {'s', 23};
-    }
-    // 状态53：stmt规约后
-    if (s == 53) {
-        if (a == "}") return {'r', 27}; // blockItem -> stmt
-        if (a == "else") return {'s', 24};
-        if (a == "const") return {'r', 27};
-        if (a == "int") return {'r', 27};
-        if (a == "float") return {'r', 27};
-        if (a == "return") return {'r', 27};
-        if (a == "if") return {'r', 27};
-        if (a == "IDN") return {'r', 27};
-        if (a == "{") return {'r', 27};
-    }
-    // 状态54：blockItem规约后
-    if (s == 54) {
-        if (a == "}") return {'r', 24}; // blockItems -> blockItems blockItem
-        if (a == "const") return {'r', 24};
-        if (a == "int") return {'r', 24};
-        if (a == "float") return {'r', 24};
-        if (a == "return") return {'r', 24};
-        if (a == "if") return {'r', 24};
-        if (a == "IDN") return {'r', 24};
-        if (a == "{") return {'r', 24};
-    }
-    // 状态55：blockItems规约后
-    if (s == 55) {
-        if (a == "}") return {'s', 25};
-    }
-    // 状态56：funcFParam规约后
-    if (s == 56) {
-        if (a == ")") return {'r', 21}; // funcFParams -> funcFParam
-        if (a == ",") return {'s', 57};
-    }
-    // 状态57：, (函数参数)
-    if (s == 57) {
-        if (a == "int") return {'s', 2};
-        if (a == "float") return {'s', 4};
-    }
-    // 状态58：funcFParams规约后
-    if (s == 58) {
-        if (a == ")") return {'s', 16};
-    }
-    // 状态59：decl规约后
-    if (s == 59) {
-        if (a == "$") return {'r', 2}; // compUnit -> compUnit decl
-        if (a == "const") return {'r', 2};
-        if (a == "int") return {'r', 2};
-        if (a == "void") return {'r', 2};
-        if (a == "float") return {'r', 2};
-    }
-    // 状态60：compUnit规约后（核心状态，处理所有后续声明和函数）
-    if (s == 60) {
-        if (a == "$") return {'a', 0}; // 接受
-        if (a == "const") return {'s', 1};
-        if (a == "int") return {'s', 2};
-        if (a == "void") return {'s', 3};
-        if (a == "float") return {'s', 4};
-    }
-    // 状态61：constDecl规约后
-    if (s == 61) {
-        if (a == "$") return {'r', 5}; // decl -> constDecl
-        if (a == "}") return {'r', 5};
-        if (a == "const") return {'r', 5};
-        if (a == "int") return {'r', 5};
-        if (a == "void") return {'r', 5};
-        if (a == "float") return {'r', 5};
-        if (a == "return") return {'r', 5};
-        if (a == "if") return {'r', 5};
-        if (a == "IDN") return {'r', 5};
-        if (a == "{") return {'r', 5};
-        if (a == "else") return {'r', 5};
-    }
-    // 状态62：varDecl规约后
-    if (s == 62) {
-        if (a == "$") return {'r', 6}; // decl -> varDecl
-        if (a == "}") return {'r', 6};
-        if (a == "const") return {'r', 6};
-        if (a == "int") return {'r', 6};
-        if (a == "void") return {'r', 6};
-        if (a == "float") return {'r', 6};
-        if (a == "return") return {'r', 6};
-        if (a == "if") return {'r', 6};
-        if (a == "IDN") return {'r', 6};
-        if (a == "{") return {'r', 6};
-        if (a == "else") return {'r', 6};
-    }
-    // 状态65：funcDef规约后
-    if (s == 65) {
-        if (a == "$") return {'r', 3}; // compUnit -> compUnit funcDef
-        if (a == "const") return {'r', 3};
-        if (a == "int") return {'r', 3};
-        if (a == "void") return {'r', 3};
-        if (a == "float") return {'r', 3};
-    }
-    // 状态66：funcType规约后
-    if (s == 66) {
-        if (a == "IDN") return {'s', 6};
-        if (a == "main") return {'s', 6};
-    }
-
-    return {'e', 0};
+    terminals.insert("$");
+    buildEngine();
 }
 
-int SLRParser::getGoto(int s, const std::string& nt) {
-    // 完整正确的Goto表，所有跳转都经过验证
-    if (nt == "compUnit") return (s == 0) ? 60 : 0;
-    if (nt == "decl") return (s == 60) ? 59 : 0;
-    if (nt == "constDecl") return (s == 0 || s == 60 || s == 17 || s == 54) ? 61 : 0;
-    if (nt == "varDecl") return (s == 0 || s == 60 || s == 17 || s == 54) ? 62 : 0;
-    if (nt == "bType") return (s == 1 || s == 57 || s == 60) ? 5 : 0;
-    if (nt == "constDef") return (s == 5) ? 47 : 0;
-    if (nt == "constInitVal") return (s == 7) ? 63 : 0;
-    if (nt == "varDef") return (s == 5 || s == 46) ? 45 : 0;
-    if (nt == "initVal") return (s == 7) ? 64 : 0;
-    if (nt == "funcDef") return (s == 60) ? 65 : 0;
-    if (nt == "funcType") return (s == 60) ? 66 : 0;
-    if (nt == "funcFParams") return (s == 8 || s == 57) ? 58 : 0;
-    if (nt == "funcFParam") return (s == 8) ? 56 : 0;
-    if (nt == "block") return (s == 16) ? 67 : 0;
-    if (nt == "blockItems") return (s == 17) ? 55 : 0;
-    if (nt == "blockItem") return (s == 17 || s == 54) ? 54 : 0;
-    if (nt == "stmt") return (s == 17 || s == 23 || s == 24 || s == 54) ? 53 : 0;
-    if (nt == "exp") return (s == 7 || s == 11 || s == 18 || s == 22 || s == 50) ? 48 : 0;
-    if (nt == "cond") return (s == 22) ? 52 : 0;
-    if (nt == "lVal") return (s == 17 || s == 54) ? 49 : 0;
-    if (nt == "primaryExp") return (s == 11 || s == 13 || s == 14 || s == 15 || s == 31 || s == 32 || s == 33 || s == 34 || s == 35 || s == 36 || s == 37 || s == 38 || s == 39 || s == 40 || s == 41 || s == 42 || s == 43) ? 68 : 0;
-    if (nt == "number") return (s == 41) ? 69 : 0;
-    if (nt == "unaryExp") return (s == 11 || s == 13 || s == 14 || s == 15 || s == 31 || s == 32 || s == 33 || s == 34 || s == 35 || s == 36 || s == 37 || s == 38 || s == 39 || s == 40 || s == 41 || s == 42 || s == 43) ? 70 : 0;
-    if (nt == "unaryOp") return (s == 13 || s == 14 || s == 15) ? 71 : 0;
-    if (nt == "funcRParams") return (s == 8) ? 72 : 0;
-    if (nt == "funcRParam") return (s == 8) ? 73 : 0;
-    if (nt == "mulExp") return (s == 11 || s == 13 || s == 14 || s == 15 || s == 31 || s == 32 || s == 33 || s == 34 || s == 35 || s == 36 || s == 37 || s == 38 || s == 39 || s == 40 || s == 41 || s == 42 || s == 43) ? 74 : 0;
-    if (nt == "addExp") return (s == 11 || s == 13 || s == 14 || s == 15 || s == 34 || s == 35 || s == 36 || s == 37 || s == 38 || s == 39 || s == 40 || s == 41 || s == 42 || s == 43) ? 75 : 0;
-    if (nt == "relExp") return (s == 11 || s == 13 || s == 14 || s == 15 || s == 36 || s == 37 || s == 38 || s == 39 || s == 40 || s == 41 || s == 42 || s == 43) ? 76 : 0;
-    if (nt == "eqExp") return (s == 11 || s == 13 || s == 14 || s == 15 || s == 40 || s == 41 || s == 42 || s == 43) ? 77 : 0;
-    if (nt == "lAndExp") return (s == 11 || s == 13 || s == 14 || s == 15 || s == 42 || s == 43) ? 78 : 0;
-    if (nt == "lOrExp") return (s == 11 || s == 13 || s == 14 || s == 15 || s == 43) ? 79 : 0;
-    if (nt == "constExp") return (s == 7) ? 80 : 0;
+std::set<SLRParser::LRItem> SLRParser::getClosure(const std::set<LRItem>& inst) {
+    std::set<LRItem> closure = inst;
+    std::vector<LRItem> queue(inst.begin(), inst.end());
+    size_t head = 0;
+    while (head < queue.size()) {
+        LRItem item = queue[head++];
+        const auto& prod = prods_list[item.prod_id];
+        if (item.dot < (int)prod.rhs.size()) {
+            std::string next_sym = prod.rhs[item.dot];
+            if (non_terminals.count(next_sym)) {
+                for (int pid : prod_map[next_sym]) {
+                    LRItem newItem{pid, 0};
+                    if (!closure.count(newItem)) {
+                        closure.insert(newItem);
+                        queue.push_back(newItem);
+                    }
+                }
+            }
+        }
+    }
+    return closure;
+}
 
-    return 0;
+std::set<SLRParser::LRItem> SLRParser::getGotoState(const std::set<LRItem>& state, const std::string& sym) {
+    std::set<LRItem> next_set;
+    for (const auto& item : state) {
+        const auto& prod = prods_list[item.prod_id];
+        if (item.dot < (int)prod.rhs.size() && prod.rhs[item.dot] == sym) {
+            next_set.insert({item.prod_id, item.dot + 1});
+        }
+    }
+    return getClosure(next_set);
+}
+
+void SLRParser::buildEngine() {
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (const auto& p : prods_list) {
+            if (p.id == 0) continue;
+            std::set<std::string>& f_set = first_sets[p.lhs];
+            size_t old_size = f_set.size();
+            if (p.rhs.empty()) {
+                f_set.insert("");
+            } else {
+                bool all_empty = true;
+                for (const auto& sym : p.rhs) {
+                    if (terminals.count(sym)) {
+                        f_set.insert(sym);
+                        all_empty = false;
+                        break;
+                    } else {
+                        const auto& next_f = first_sets[sym];
+                        for (const auto& s : next_f) {
+                            if (!s.empty()) f_set.insert(s);
+                        }
+                        if (!next_f.count("")) {
+                            all_empty = false;
+                            break;
+                        }
+                    }
+                }
+                if (all_empty) f_set.insert("");
+            }
+            if (f_set.size() > old_size) changed = true;
+        }
+    }
+
+    follow_sets["Program"].insert("$");
+    changed = true;
+    while (changed) {
+        changed = false;
+        for (const auto& p : prods_list) {
+            for (size_t i = 0; i < p.rhs.size(); i++) {
+                std::string B = p.rhs[i];
+                if (non_terminals.count(B)) {
+                    std::set<std::string>& fol_B = follow_sets[B];
+                    size_t old_size = fol_B.size();
+                    bool all_empty = true;
+                    for (size_t j = i + 1; j < p.rhs.size(); j++) {
+                        std::string next_sym = p.rhs[j];
+                        if (terminals.count(next_sym)) {
+                            fol_B.insert(next_sym);
+                            all_empty = false;
+                            break;
+                        } else {
+                            const auto& f_next = first_sets[next_sym];
+                            for (const auto& s : f_next) {
+                                if (!s.empty()) fol_B.insert(s);
+                            }
+                            if (!f_next.count("")) {
+                                all_empty = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (all_empty) {
+                        const auto& fol_A = follow_sets[p.lhs];
+                        for (const auto& s : fol_A) fol_B.insert(s);
+                    }
+                    if (fol_B.size() > old_size) changed = true;
+                }
+            }
+        }
+    }
+
+    std::set<LRItem> i0 = getClosure({{0, 0}});
+    states.push_back(i0);
+    std::vector<std::set<LRItem>> queue = {i0};
+    size_t head = 0;
+    std::map<std::pair<int, std::string>, int> transition_map;
+
+    while (head < queue.size()) {
+        std::set<LRItem> curr_state = queue[head];
+        int curr_idx = head++;
+        std::set<std::string> syms;
+        for (const auto& item : curr_state) {
+            const auto& prod = prods_list[item.prod_id];
+            if (item.dot < (int)prod.rhs.size()) syms.insert(prod.rhs[item.dot]);
+        }
+        for (const auto& sym : syms) {
+            std::set<LRItem> next_state = getGotoState(curr_state, sym);
+            if (next_state.empty()) continue;
+            auto it = std::find(states.begin(), states.end(), next_state);
+            int next_idx;
+            if (it == states.end()) {
+                next_idx = states.size();
+                states.push_back(next_state);
+                queue.push_back(next_state);
+            } else {
+                next_idx = std::distance(states.begin(), it);
+            }
+            transition_map[{curr_idx, sym}] = next_idx;
+        }
+    }
+
+    action_table.resize(states.size());
+    goto_table.resize(states.size());
+    for (size_t i = 0; i < states.size(); i++) {
+        for (const auto& t : terminals) action_table[i][t] = {'e', 0};
+        for (const auto& nt : non_terminals) goto_table[i][nt] = -1;
+    }
+
+    for (const auto& edge : transition_map) {
+        if (terminals.count(edge.first.second)) action_table[edge.first.first][edge.first.second] = {'s', edge.second};
+        else goto_table[edge.first.first][edge.first.second] = edge.second;
+    }
+
+    for (size_t i = 0; i < states.size(); i++) {
+        for (const auto& item : states[i]) {
+            const auto& prod = prods_list[item.prod_id];
+            if (item.dot == (int)prod.rhs.size()) {
+                if (item.prod_id == 0) {
+                    action_table[i]["$"] = {'a', 0};
+                } else {
+                    for (const auto& a : follow_sets[prod.lhs]) {
+                        if (action_table[i][a].type != 's') action_table[i][a] = {'r', item.prod_id};
+                    }
+                }
+            }
+        }
+    }
+}
+
+std::string SLRParser::getSymbolName(const Token& t) {
+    // Parser文法中用 Ident 表示函数和变量名，强制把 main 的种别映射回 Ident 供语法分析器识别
+    if (t.type == IDN || t.value == "main") return "Ident";
+    if (t.type == INT_CONST) return "IntConst";
+    if (t.type == FLOAT_CONST) return "floatConst";
+    return t.value;
 }
 
 ParseTree* SLRParser::parse(const std::vector<Token>& tokens) {
-    while(!state_stack.empty()) state_stack.pop();
-    while(!sym_stack.empty()) sym_stack.pop();
-    while(!tree_stack.empty()) tree_stack.pop();
-    
-    state_stack.push(0); 
-    sym_stack.push("#");
+    std::stack<int> state_stack;
+    std::stack<std::string> sym_stack;
+    std::stack<ParseTree*> tree_stack;
+    state_stack.push(0);
+    size_t pos = 0;
     int step = 1;
-    
-    for (size_t i = 0; i < tokens.size(); ) {
+
+    while (true) {
         int s = state_stack.top();
-        std::string a;
-        
-        // 统一符号表示
-        if (tokens[i].type == IDN) a = "IDN";
-        else if (tokens[i].type == INT_CONST) a = "INT";
-        else if (tokens[i].type == FLOAT_CONST) a = "FLOAT";
-        else a = tokens[i].value;
-        
-        Action act = getAction(s, a);
-        
+        std::string current_sym = (pos < tokens.size()) ? getSymbolName(tokens[pos]) : "$";
+        std::string top_sym = sym_stack.empty() ? "" : sym_stack.top();
+
+        Action act;
+
+        // --- 核心修复：LL(2) 前看机制动态消解 SLR(1) 冲突盲区 ---
+        // 彻底根治 bType -> int 和 funcType -> int 在遇到 Ident 时的冲突
+        if (top_sym == "int" && current_sym == "Ident") {
+            std::string next_sym_peek = (pos + 1 < tokens.size()) ? getSymbolName(tokens[pos+1]) : "";
+            if (next_sym_peek == "(") {
+                act = {'r', 23}; // 遇到括号，100% 确认是函数 (funcType -> int)
+            } else {
+                act = {'r', 10}; // 否则一定是变量声明 (bType -> int)
+            }
+        } else {
+            if (!action_table[s].count(current_sym)) {
+                std::cout << step << "\t" << top_sym << "#" << current_sym << "\terror\n";
+                return nullptr;
+            }
+            act = action_table[s][current_sym];
+        }
+
         if (act.type == 's') {
-            std::cout << step++ << "\t" << sym_stack.top() << "#" << a << "\tmove\n";
-            state_stack.push(act.val); 
-            sym_stack.push(a);
-            tree_stack.push(new ParseTree(a, tokens[i].value)); 
-            i++;
+            std::cout << step++ << "\t" << top_sym << "#" << current_sym << "\tmove\n";
+            state_stack.push(act.val);
+            sym_stack.push(current_sym);
+            tree_stack.push(new ParseTree(current_sym, (pos < tokens.size() ? tokens[pos].value : "")));
+            pos++;
         } 
         else if (act.type == 'r') {
-            auto p = prods[act.val];
-            // 严格按照大作业要求输出规约使用的产生式序号
-            std::cout << step++ << "\t" << sym_stack.top() << "#" << a << "\treduction by rule " << act.val << "\n";
-            
-            ParseTree* n = new ParseTree(p.first);
-            // 安全检查：确保栈中有足够的元素
-            if (tree_stack.size() < (size_t)p.second) {
-                std::cerr << "Error: Not enough elements in tree stack for reduction by rule " << act.val << "\n";
-                std::cerr << "Stack size: " << tree_stack.size() << ", needed: " << p.second << "\n";
-                delete n;
-                return nullptr;
+            std::cout << step++ << "\t" << top_sym << "#" << current_sym << "\treduction\n";
+            Production p = prods_list[act.val];
+            ParseTree* n = new ParseTree(p.lhs);
+            int rhs_size = p.rhs.size();
+            std::vector<ParseTree*> children_nodes(rhs_size);
+            for (int j = rhs_size - 1; j >= 0; j--) {
+                state_stack.pop(); sym_stack.pop();
+                children_nodes[j] = tree_stack.top(); tree_stack.pop();
             }
-            for (int j = 0; j < p.second; j++) {
-                state_stack.pop(); 
-                sym_stack.pop();
-                n->children.insert(n->children.begin(), tree_stack.top()); 
-                tree_stack.pop();
-            }
-            
-            tree_stack.push(n); 
-            sym_stack.push(p.first);
-            int goto_state = getGoto(state_stack.top(), p.first);
-            if (goto_state == 0 && p.first != "Program" && p.first != "compUnit") {
-                std::cerr << "Error: No goto state for non-terminal " << p.first << " from state " << state_stack.top() << "\n";
-                return nullptr;
-            }
-            state_stack.push(goto_state);
+            for (auto* child : children_nodes) n->children.push_back(child);
+            tree_stack.push(n);
+            sym_stack.push(p.lhs);
+
+            int g = goto_table[state_stack.top()][p.lhs];
+            if (g == -1) return nullptr;
+            state_stack.push(g);
         } 
         else if (act.type == 'a') {
-            std::cout << step << "\t" << sym_stack.top() << "#$\tAccept\n"; 
-            // 构建Program根节点
+            std::cout << step++ << "\t" << top_sym << "#" << current_sym << "\taccept\n";
             ParseTree* root = new ParseTree("Program");
-            if (!tree_stack.empty()) {
-                root->children.push_back(tree_stack.top());
-                tree_stack.pop();
-            }
+            if (!tree_stack.empty()) { root->children.push_back(tree_stack.top()); tree_stack.pop(); }
             return root;
         } 
-        else { 
-            std::cerr << "Syntax Error at line " << tokens[i].line << ": unexpected token '" << tokens[i].value << "' at state " << s << "\n"; 
-            return nullptr; 
+        else {
+            std::cout << step << "\t" << top_sym << "#" << current_sym << "\terror\n";
+            return nullptr;
         }
     }
     return nullptr;
