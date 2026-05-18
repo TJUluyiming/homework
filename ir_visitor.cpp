@@ -1,405 +1,309 @@
 // ir_visitor.cpp
 #include "ir_visitor.h"
+#include <algorithm>
+
+IRVisitor::IRVisitor() {
+    std::cout << "declare i32 @getint()\n";
+    std::cout << "declare i32 @getch()\n";
+    std::cout << "declare i32 @getarray(i32*)\n";
+    std::cout << "declare void @putint(i32)\n";
+    std::cout << "declare void @putch(i32)\n";
+    std::cout << "declare void @putarray(i32, i32*)\n";
+    std::cout << "declare void @starttime()\n";
+    std::cout << "declare void @stoptime()\n\n";
+}
+void IRVisitor::extractVarDefs(ParseTree* node, std::vector<ParseTree*>& defs) {
+    if (!node) return;
+    if (node->type == "varDef") defs.push_back(node);
+    else for (auto* c : node->children) extractVarDefs(c, defs);
+}
+
+void IRVisitor::extractConstDefs(ParseTree* node, std::vector<ParseTree*>& defs) {
+    if (!node) return;
+    if (node->type == "constDef") defs.push_back(node);
+    else for (auto* c : node->children) extractConstDefs(c, defs);
+}
+
+void IRVisitor::extractFuncFParams(ParseTree* node, std::vector<ParseTree*>& params) {
+    if (!node) return;
+    if (node->type == "funcFParam") params.push_back(node);
+    else for (auto* c : node->children) extractFuncFParams(c, params);
+}
+
+// 提取实际参数列表
+void IRVisitor::extractFuncRParams(ParseTree* node, std::vector<ParseTree*>& params) {
+    if (!node) return;
+    if (node->type == "funcRParam") params.push_back(node);
+    else for (auto* c : node->children) extractFuncRParams(c, params);
+}
 
 void IRVisitor::visit(ParseTree* node) {
     if (!node) return;
-    
-    // 初始化全局作用域
     if (symbol_scopes.empty()) symbol_scopes.push_back({});
     
-    if (node->type == "Program") {
-        for (auto* c : node->children) visit(c);
-    }
-    else if (node->type == "compUnit") {
-        for (auto* c : node->children) visit(c);
-    }
-    else if (node->type == "decl") {
+    if (node->type == "Program" || node->type == "compUnit" || node->type == "decl" || node->type == "blockItems") {
         for (auto* c : node->children) visit(c);
     }
     else if (node->type == "constDecl") {
         Type type("i32");
-        std::string var_name;
-        Value* init_val = nullptr;
-        bool is_const = true;
-        
-        for (auto* c : node->children) {
-            if (c->type == "bType") {
-                for (auto* cc : c->children) {
-                    if (cc->type == "int") type = Type("i32");
-                    if (cc->type == "float") type = Type("float");
-                }
-            }
-            if (c->type == "constDef") {
-                for (auto* cc : c->children) {
-                    if (cc->type == "IDN") var_name = cc->text;
-                    if (cc->type == "constInitVal") {
-                        init_val = visitExp(cc->children[0]);
-                    }
-                }
-            }
+        if (node->children[1] && !node->children[1]->children.empty()) {
+            type = Type(node->children[1]->children[0]->type); 
         }
-        
-        if (!var_name.empty() && init_val && init_val->isConstant()) {
-            Value* var = GlobalVariable::create(var_name, type, is_const, init_val);
-            symbol_scopes.back()[var_name] = var;
+        std::vector<ParseTree*> const_defs;
+        extractConstDefs(node->children[2], const_defs);
+        for (auto* def : const_defs) {
+            std::string var_name = def->children[0]->text;
+            Value* init_val = visitExp(def->children[2]->children[0]);
+            if (!var_name.empty() && init_val) {
+                symbol_scopes.back()[var_name] = GlobalVariable::create(var_name, type, true, init_val);
+            }
         }
     }
     else if (node->type == "varDecl") {
         Type type("i32");
-        std::string var_name;
-        Value* init_val = nullptr;
-        
-        for (auto* c : node->children) {
-            if (c->type == "bType") {
-                for (auto* cc : c->children) {
-                    if (cc->type == "int") type = Type("i32");
-                    if (cc->type == "float") type = Type("float");
-                }
-            }
-            if (c->type == "varDef") {
-                for (auto* cc : c->children) {
-                    if (cc->type == "IDN") var_name = cc->text;
-                    if (cc->type == "initVal") {
-                        init_val = visitExp(cc->children[0]);
-                    }
-                }
-            }
+        if (node->children[0] && !node->children[0]->children.empty()) {
+            type = Type(node->children[0]->children[0]->type);
         }
-        
-        if (!var_name.empty()) {
-            Value* var;
-            if (symbol_scopes.size() == 1) { // 全局变量
-                var = GlobalVariable::create(var_name, type, false, init_val);
-            } else { // 局部变量
-                var = new AllocaInst(var_name, type);
-                if (init_val) {
-                    new StoreInst(init_val, var);
+        std::vector<ParseTree*> var_defs;
+        extractVarDefs(node->children[1], var_defs);
+        for (auto* def : var_defs) {
+            std::string var_name = def->children[0]->text;
+            Value* init_val = (def->children.size() > 1) ? visitExp(def->children[2]) : nullptr;
+            if (!var_name.empty()) {
+                Value* var;
+                if (symbol_scopes.size() == 1) {
+                    var = GlobalVariable::create(var_name, type, false, init_val);
+                } else {
+                    var = new AllocaInst(var_name, type);
+                    if (init_val) new StoreInst(init_val, var);
                 }
+                symbol_scopes.back()[var_name] = var;
             }
-            symbol_scopes.back()[var_name] = var;
         }
     }
     else if (node->type == "funcDef") {
-        std::string func_name = "main";
-        Type return_type("i32");
-        std::vector<std::string> params;
+        std::string ret_str = node->children[0]->children[0]->type;
+        Type ret_type(ret_str); std::string func_name = node->children[1]->text;
         
-        // 获取函数名和返回类型
-        for (auto* c : node->children) {
-            if (c->type == "funcType") {
-                for (auto* cc : c->children) {
-                    if (cc->type == "int") return_type = Type("i32");
-                    if (cc->type == "void") return_type = Type("void");
-                }
-            }
-            if (c->type == "IDN" || c->text == "main") func_name = c->text;
-            if (c->type == "funcFParams") {
-                for (auto* cc : c->children) {
-                    if (cc->type == "funcFParam") {
-                        for (auto* ccc : cc->children) {
-                            if (ccc->type == "IDN") {
-                                params.push_back(ccc->text);
-                            }
-                        }
-                    }
-                }
-            }
+        std::cout << "define " << ret_type.name << " @" << func_name << "(";
+        std::vector<ParseTree*> params; ParseTree* block_node = nullptr;
+        if (node->children.size() == 5) block_node = node->children[4];
+        else { extractFuncFParams(node->children[3], params); block_node = node->children[6]; }
+        
+        for (size_t i = 0; i < params.size(); i++) {
+            if (i > 0) std::cout << ", ";
+            std::cout << params[i]->children[0]->children[0]->type << " %param_" << params[i]->children[1]->text;
         }
-        
-        // 创建函数
-        Function::create(func_name, return_type, params);
-        std::cout << "entry:\n";
-        
-        // 进入函数局部作用域
+        std::cout << ") {\n" << func_name << "_ENTRY:\n";
         symbol_scopes.push_back({});
         
-        // 分配函数参数空间
-        for (const auto& param : params) {
-            Value* alloca = new AllocaInst(param, Type("i32"));
-            symbol_scopes.back()[param] = alloca;
+        for (auto* p : params) {
+            std::string p_type = p->children[0]->children[0]->type; std::string p_name = p->children[1]->text;
+            Value* alloca_space = new AllocaInst(p_name, Type(p_type));
+            struct ParamValue : public Value {
+                std::string name; Type t; ParamValue(std::string n, Type _t) : name(n), t(_t) {}
+                std::string getName() const override { return "%param_" + name; }
+                Type getType() const override { return t; }
+            } p_val(p_name, Type(p_type));
+            new StoreInst(&p_val, alloca_space);
+            symbol_scopes.back()[p_name] = alloca_space;
         }
-        
-        // 遍历函数体
-        for (auto* c : node->children) {
-            if (c->type == "block") {
-                for (auto* cc : c->children) {
-                    if (cc->type == "blockItems") {
-                        for (auto* ccc : cc->children) {
-                            visit(ccc);
-                        }
-                    }
-                }
-            }
-        }
-        
-        // 退出作用域
-        symbol_scopes.pop_back();
-        std::cout << "}\n";
+        visit(block_node);
+        symbol_scopes.pop_back(); std::cout << "}\n";
+    }
+    else if (node->type == "block") {
+        for (auto* c : node->children) if (c->type == "blockItems") visit(c);
+    }
+    else if (node->type == "blockItem") {
+        for (auto* c : node->children) visit(c);
     }
     else if (node->type == "stmt") {
-        // 赋值语句
-        if (node->children.size() >= 4 && node->children[1]->type == "=") {
-            Value* lval = visitLVal(node->children[0]);
-            Value* exp = visitExp(node->children[2]);
-            if (lval && exp) {
-                new StoreInst(exp, lval);
-            }
+        if (node->children[0]->type == "lVal") {
+            Value* ptr = visitLVal(node->children[0]); Value* val = visitExp(node->children[2]);
+            if (ptr && val) new StoreInst(val, ptr);
         }
-        // return语句
-        else if (!node->children.empty() && node->children[0]->type == "return") {
-            if (node->children.size() == 4) { // return exp ;
-                Value* ret_val = visitExp(node->children[1]);
-                if (ret_val) {
-                    new ReturnInst(ret_val);
-                }
-            } else { // return ;
-                new ReturnInst();
-            }
+        else if (node->children[0]->type == "exp") visitExp(node->children[0]);
+        else if (node->children[0]->type == "block") {
+            symbol_scopes.push_back({}); visit(node->children[0]); symbol_scopes.pop_back();
         }
-        // if语句
-        else if (!node->children.empty() && node->children[0]->type == "if") {
+        else if (node->children[0]->type == "return") {
+            if (node->children.size() > 2 && node->children[1]->type == "exp") {
+                new ReturnInst(visitExp(node->children[1]));
+            } else new ReturnInst(nullptr);
+        }
+        else if (node->children[0]->type == "if") {
             Value* cond = visitCond(node->children[2]);
-            std::string true_label = newLabel();
-            std::string false_label = newLabel();
-            std::string end_label = newLabel();
-            
-            if (node->children.size() == 7) { // if-else
-                new BranchInst(cond, true_label, false_label);
-                
-                new LabelInst(true_label);
-                visit(node->children[4]);
-                new BranchInst(end_label);
-                
-                new LabelInst(false_label);
-                visit(node->children[6]);
-                new BranchInst(end_label);
-                
-                new LabelInst(end_label);
-            } else { // if
-                new BranchInst(cond, true_label, end_label);
-                
-                new LabelInst(true_label);
-                visit(node->children[4]);
-                new BranchInst(end_label);
-                
-                new LabelInst(end_label);
+            std::string true_lbl = newLabel(); std::string end_lbl = newLabel();
+            if (node->children.size() == 5) {
+                new BranchInst(cond, true_lbl, end_lbl);
+                new LabelInst(true_lbl); visit(node->children[4]); new BranchInst(end_lbl);
+                new LabelInst(end_lbl);
+            } else {
+                std::string false_lbl = newLabel();
+                new BranchInst(cond, true_lbl, false_lbl);
+                new LabelInst(true_lbl); visit(node->children[4]); new BranchInst(end_lbl);
+                new LabelInst(false_lbl); visit(node->children[6]); new BranchInst(end_lbl);
+                new LabelInst(end_lbl);
             }
-        }
-        // 块语句
-        else if (!node->children.empty() && node->children[0]->type == "block") {
-            symbol_scopes.push_back({});
-            for (auto* c : node->children[0]->children) {
-                if (c->type == "blockItems") {
-                    for (auto* cc : c->children) {
-                        visit(cc);
-                    }
-                }
-            }
-            symbol_scopes.pop_back();
-        }
-        // 表达式语句
-        else if (node->children.size() == 2 && node->children[1]->type == ";") {
-            visitExp(node->children[0]);
-        }
-    }
-    else {
-        // 递归访问其他节点
-        for (auto* c : node->children) {
-            visit(c);
         }
     }
 }
 
 Value* IRVisitor::visitExp(ParseTree* node) {
     if (!node) return nullptr;
-    if (node->type == "exp") {
+    
+    // 新增：如果是 initVal 或 constInitVal 节点，剥开一层往下传
+    if (node->type == "initVal" || node->type == "constInitVal") {
+        return visitExp(node->children[0]);
+    }
+    
+    if (node->type == "exp" || node->type == "constExp") {
         return visitAddExp(node->children[0]);
     }
+    
     return visitAddExp(node);
 }
 
 Value* IRVisitor::visitCond(ParseTree* node) {
     if (!node) return nullptr;
-    if (node->type == "cond") {
-        return visitLOrExp(node->children[0]);
-    }
-    return visitLOrExp(node);
+    if (node->type == "cond") return visitLOrExp(node->children[0]);
+    return nullptr;
 }
 
 Value* IRVisitor::visitLVal(ParseTree* node) {
     if (!node) return nullptr;
-    if (node->type == "lVal") {
-        std::string name = node->children[0]->text;
-        // 从符号表查找变量（从内到外）
-        for (auto it = symbol_scopes.rbegin(); it != symbol_scopes.rend(); ++it) {
-            if (it->count(name)) {
-                return (*it)[name];
-            }
-        }
-        std::cerr << "Error: Undefined variable '" << name << "'\n";
+    std::string name = node->children[0]->text;
+    for (int i = (int)symbol_scopes.size() - 1; i >= 0; i--) {
+        if (symbol_scopes[i].count(name)) return symbol_scopes[i][name];
     }
     return nullptr;
 }
 
 Value* IRVisitor::visitPrimaryExp(ParseTree* node) {
     if (!node) return nullptr;
-    if (node->type == "primaryExp") {
-        if (node->children.size() == 3 && node->children[0]->type == "(") {
-            return visitExp(node->children[1]);
-        } else if (node->children.size() == 1 && node->children[0]->type == "lVal") {
-            Value* lval = visitLVal(node->children[0]);
-            if (lval) {
-                return new LoadInst(newTemp(), lval);
-            }
-        } else if (node->children.size() == 1 && node->children[0]->type == "number") {
-            if (node->children[0]->children[0]->type == "INT") {
-                return ConstantInt::get(std::stoi(node->children[0]->children[0]->text));
-            }
-        }
+    if (node->children.size() == 3) return visitExp(node->children[1]);
+    if (node->children[0]->type == "lVal") {
+        Value* ptr = visitLVal(node->children[0]);
+        if (ptr) return new LoadInst(newTemp(), ptr);
+    }
+    if (node->children[0]->type == "number") {
+        ParseTree* num_node = node->children[0]->children[0];
+        if (num_node->type == "IntConst") return ConstantInt::get(std::stoi(num_node->text));
+        if (num_node->type == "floatConst") return ConstantFloat::get(std::stof(num_node->text));
     }
     return nullptr;
 }
 
 Value* IRVisitor::visitUnaryExp(ParseTree* node) {
     if (!node) return nullptr;
-    if (node->type == "unaryExp") {
-        if (node->children.size() == 1) {
-            return visitPrimaryExp(node->children[0]);
-        } else if (node->children.size() == 2) {
-            std::string op = node->children[0]->children[0]->type;
-            Value* operand = visitUnaryExp(node->children[1]);
-            if (operand) {
-                if (op == "-") {
-                    return new BinaryOpInst(newTemp(), "sub", ConstantInt::get(0), operand);
-                } else if (op == "!") {
-                    return new ICmpInst(newTemp(), "eq", operand, ConstantInt::get(0));
-                }
-                // + 单目运算符不做处理
-                return operand;
+    if (node->children[0]->type == "primaryExp") return visitPrimaryExp(node->children[0]);
+    
+    // 核心修复：添加函数调用支持 (CallInst)
+    if (node->children[0]->type == "Ident") {
+        std::string func_name = node->children[0]->text;
+        std::vector<Value*> args;
+        
+        // 存在传入参数时
+        if (node->children.size() > 3 && node->children[2]->type == "funcRParams") {
+            std::vector<ParseTree*> rparams;
+            extractFuncRParams(node->children[2], rparams);
+            for (auto* p : rparams) {
+                if (!p->children.empty()) args.push_back(visitExp(p->children[0]));
             }
         }
+        
+        // C-- 的库调用统一回退认定为 i32 返回类型
+        Value* func_val = new FunctionValue(func_name, Type("i32"));
+        return new CallInst(newTemp(), func_val, args);
+    }
+    
+    if (node->children[0]->type == "unaryOp") {
+        std::string op = node->children[0]->children[0]->type; Value* operand = visitUnaryExp(node->children[1]);
+        if (op == "+") return operand;
+        if (op == "-") {
+            if (operand->getType().isFloat()) return new BinaryInst(newTemp(), "fsub", ConstantFloat::get(0.0f), operand);
+            return new BinaryInst(newTemp(), "sub", ConstantInt::get(0), operand);
+        }
+        if (op == "!") return new BinaryInst(newTemp(), "xor", operand, ConstantInt::get(1));
     }
     return nullptr;
 }
 
 Value* IRVisitor::visitMulExp(ParseTree* node) {
     if (!node) return nullptr;
-    if (node->type == "mulExp") {
-        if (node->children.size() == 1) {
-            return visitUnaryExp(node->children[0]);
-        } else {
-            Value* lhs = visitMulExp(node->children[0]);
-            std::string op = node->children[1]->type;
-            Value* rhs = visitUnaryExp(node->children[2]);
-            if (lhs && rhs) {
-                if (op == "*") {
-                    return new BinaryOpInst(newTemp(), "mul", lhs, rhs);
-                } else if (op == "/") {
-                    return new BinaryOpInst(newTemp(), "sdiv", lhs, rhs);
-                } else if (op == "%") {
-                    return new BinaryOpInst(newTemp(), "srem", lhs, rhs);
-                }
-            }
-        }
-    }
+    if (node->children.size() == 1) return visitUnaryExp(node->children[0]);
+    Value* lhs = visitMulExp(node->children[0]); Value* rhs = visitUnaryExp(node->children[2]);
+    std::string op = node->children[1]->type;
+    bool is_f = lhs->getType().isFloat() || rhs->getType().isFloat();
+    if (op == "*") return new BinaryInst(newTemp(), is_f ? "fmul" : "mul", lhs, rhs);
+    if (op == "/") return new BinaryInst(newTemp(), is_f ? "fdiv" : "sdiv", lhs, rhs);
+    if (op == "%") return new BinaryInst(newTemp(), "srem", lhs, rhs);
     return nullptr;
 }
 
 Value* IRVisitor::visitAddExp(ParseTree* node) {
     if (!node) return nullptr;
-    if (node->type == "addExp") {
-        if (node->children.size() == 1) {
-            return visitMulExp(node->children[0]);
-        } else {
-            Value* lhs = visitAddExp(node->children[0]);
-            std::string op = node->children[1]->type;
-            Value* rhs = visitMulExp(node->children[2]);
-            if (lhs && rhs) {
-                if (op == "+") {
-                    return new BinaryOpInst(newTemp(), "add", lhs, rhs);
-                } else if (op == "-") {
-                    return new BinaryOpInst(newTemp(), "sub", lhs, rhs);
-                }
-            }
-        }
-    }
+    if (node->children.size() == 1) return visitMulExp(node->children[0]);
+    Value* lhs = visitAddExp(node->children[0]); Value* rhs = visitMulExp(node->children[2]);
+    std::string op = node->children[1]->type;
+    bool is_f = lhs->getType().isFloat() || rhs->getType().isFloat();
+    if (op == "+") return new BinaryInst(newTemp(), is_f ? "fadd" : "add", lhs, rhs);
+    if (op == "-") return new BinaryInst(newTemp(), is_f ? "fsub" : "sub", lhs, rhs);
     return nullptr;
 }
 
 Value* IRVisitor::visitRelExp(ParseTree* node) {
     if (!node) return nullptr;
-    if (node->type == "relExp") {
-        if (node->children.size() == 1) {
-            return visitAddExp(node->children[0]);
-        } else {
-            Value* lhs = visitRelExp(node->children[0]);
-            std::string op = node->children[1]->type;
-            Value* rhs = visitAddExp(node->children[2]);
-            if (lhs && rhs) {
-                if (op == "<") {
-                    return new ICmpInst(newTemp(), "slt", lhs, rhs);
-                } else if (op == ">") {
-                    return new ICmpInst(newTemp(), "sgt", lhs, rhs);
-                } else if (op == "<=") {
-                    return new ICmpInst(newTemp(), "sle", lhs, rhs);
-                } else if (op == ">=") {
-                    return new ICmpInst(newTemp(), "sge", lhs, rhs);
-                }
-            }
-        }
-    }
-    return nullptr;
+    if (node->children.size() == 1) return visitAddExp(node->children[0]);
+    Value* lhs = visitRelExp(node->children[0]); Value* rhs = visitAddExp(node->children[2]);
+    std::string op = node->children[1]->type;
+    std::string instr = lhs->getType().isFloat() ? "fcmp " : "icmp ";
+    if (op == "<") instr += lhs->getType().isFloat() ? "olt" : "slt";
+    else if (op == ">") instr += lhs->getType().isFloat() ? "ogt" : "sgt";
+    else if (op == "<=") instr += lhs->getType().isFloat() ? "ole" : "sle";
+    else if (op == ">=") instr += lhs->getType().isFloat() ? "oge" : "sge";
+    return new BinaryInst(newTemp(), instr, lhs, rhs);
 }
 
 Value* IRVisitor::visitEqExp(ParseTree* node) {
     if (!node) return nullptr;
-    if (node->type == "eqExp") {
-        if (node->children.size() == 1) {
-            return visitRelExp(node->children[0]);
-        } else {
-            Value* lhs = visitEqExp(node->children[0]);
-            std::string op = node->children[1]->type;
-            Value* rhs = visitRelExp(node->children[2]);
-            if (lhs && rhs) {
-                if (op == "==") {
-                    return new ICmpInst(newTemp(), "eq", lhs, rhs);
-                } else if (op == "!=") {
-                    return new ICmpInst(newTemp(), "ne", lhs, rhs);
-                }
-            }
-        }
-    }
-    return nullptr;
+    if (node->children.size() == 1) return visitRelExp(node->children[0]);
+    Value* lhs = visitEqExp(node->children[0]); Value* rhs = visitRelExp(node->children[2]);
+    std::string op = node->children[1]->type;
+    std::string instr = lhs->getType().isFloat() ? "fcmp " : "icmp ";
+    if (op == "==") instr += lhs->getType().isFloat() ? "oeq" : "eq";
+    else if (op == "!=") instr += lhs->getType().isFloat() ? "one" : "ne";
+    return new BinaryInst(newTemp(), instr, lhs, rhs);
 }
 
 Value* IRVisitor::visitLAndExp(ParseTree* node) {
     if (!node) return nullptr;
-    if (node->type == "lAndExp") {
-        if (node->children.size() == 1) {
-            return visitEqExp(node->children[0]);
-        } else {
-            Value* lhs = visitLAndExp(node->children[0]);
-            Value* rhs = visitEqExp(node->children[2]);
-            if (lhs && rhs) {
-                return new BinaryOpInst(newTemp(), "and", lhs, rhs);
-            }
-        }
-    }
-    return nullptr;
+    if (node->children.size() == 1) return visitEqExp(node->children[0]);
+    
+    std::string next_lbl = newLabel(); std::string false_lbl = newLabel(); std::string end_lbl = newLabel();
+    Value* result = new AllocaInst(newTemp(), Type("i1"));
+    Value* lhs = visitLAndExp(node->children[0]);
+    new BranchInst(lhs, next_lbl, false_lbl);
+    
+    new LabelInst(next_lbl);
+    Value* rhs = visitEqExp(node->children[2]); new StoreInst(rhs, result); new BranchInst(end_lbl);
+    new LabelInst(false_lbl); new StoreInst(ConstantInt::get(0), result); new BranchInst(end_lbl);
+    new LabelInst(end_lbl);
+    return new LoadInst(newTemp(), result);
 }
 
 Value* IRVisitor::visitLOrExp(ParseTree* node) {
     if (!node) return nullptr;
-    if (node->type == "lOrExp") {
-        if (node->children.size() == 1) {
-            return visitLAndExp(node->children[0]);
-        } else {
-            Value* lhs = visitLOrExp(node->children[0]);
-            Value* rhs = visitLAndExp(node->children[2]);
-            if (lhs && rhs) {
-                return new BinaryOpInst(newTemp(), "or", lhs, rhs);
-            }
-        }
-    }
-    return nullptr;
+    if (node->children.size() == 1) return visitLAndExp(node->children[0]);
+    
+    std::string next_lbl = newLabel(); std::string true_lbl = newLabel(); std::string end_lbl = newLabel();
+    Value* result = new AllocaInst(newTemp(), Type("i1"));
+    Value* lhs = visitLOrExp(node->children[0]);
+    new BranchInst(lhs, true_lbl, next_lbl);
+    
+    new LabelInst(next_lbl);
+    Value* rhs = visitLAndExp(node->children[2]); new StoreInst(rhs, result); new BranchInst(end_lbl);
+    new LabelInst(true_lbl); new StoreInst(ConstantInt::get(1), result); new BranchInst(end_lbl);
+    new LabelInst(end_lbl);
+    return new LoadInst(newTemp(), result);
 }
