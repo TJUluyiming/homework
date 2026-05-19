@@ -31,7 +31,7 @@
 | **run_tests.ps1** | **自动化测试脚本**：批量运行测试用例、自动比对结果并生成测试报告。 |
 | **Readme.md** | 项目说明文档。 |
 | **test_results/** | 自动测试输出目录（运行测试脚本后自动生成）。 |
-
+| **MakeFile** | 
 ---
 
 # 3. 核心功能实现
@@ -236,7 +236,7 @@ int func(...)
 ```powershell
 # 删除旧程序并重新编译（静态链接）
 
-g++ -std=c++17 -Wall -g -static lexer.cpp parser.cpp ir_visitor.cpp main.cpp -o mycompiler.exe
+g++ -std=c++17 -Wall -g -static -I./include lexer.cpp parser.cpp ir_visitor.cpp main.cpp src/BasicBlock.cpp src/Constant.cpp src/Function.cpp src/GlobalVariable.cpp src/Instruction.cpp src/IRprinter.cpp src/Module.cpp src/Type.cpp src/User.cpp src/Value.cpp -o mycompiler.exe
 
 # 运行编译器
 
