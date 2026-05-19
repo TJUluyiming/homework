@@ -283,8 +283,6 @@ ParseTree* SLRParser::parse(const std::vector<Token>& tokens) {
 
         Action act;
 
-        // --- 核心修复：LL(2) 前看机制动态消解 SLR(1) 冲突盲区 ---
-        // 彻底根治 bType -> int 和 funcType -> int 在遇到 Ident 时的冲突
         if (top_sym == "int" && current_sym == "Ident") {
             std::string next_sym_peek = (pos + 1 < tokens.size()) ? getSymbolName(tokens[pos+1]) : "";
             if (next_sym_peek == "(") {
