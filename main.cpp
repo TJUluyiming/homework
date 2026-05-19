@@ -47,7 +47,7 @@ int main() {
     std::cout << "\n>>> Phase 3: Intermediate Code Generation\n";
     IRVisitor visitor;
     visitor.visit(ast);
-    
+    std::cout << visitor.output() << std::endl;
     delete ast;
     return 0;
 }
