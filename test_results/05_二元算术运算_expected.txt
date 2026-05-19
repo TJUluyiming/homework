@@ -1,0 +1,162 @@
+﻿>>> Phase 1: Lexical Analysis
+int     <KW,1>
+main    <KW,5>
+(       <SE,20>
+)       <SE,21>
+{       <SE,22>
+int     <KW,1>
+a       <IDN,a>
+=       <OP,11>
+3       <INT,3>
++       <OP,6>
+4       <INT,4>
+*       <OP,8>
+5       <INT,5>
+;       <SE,24>
+int     <KW,1>
+b       <IDN,b>
+=       <OP,11>
+(       <SE,20>
+10      <INT,10>
+-       <OP,7>
+2       <INT,2>
+)       <SE,21>
+/       <OP,9>
+3       <INT,3>
+;       <SE,24>
+int     <KW,1>
+c       <IDN,c>
+=       <OP,11>
+15      <INT,15>
+%       <OP,10>
+4       <INT,4>
+;       <SE,24>
+return  <KW,3>
+0       <INT,0>
+;       <SE,24>
+}       <SE,23>
+
+>>> Symbol Table
+a       <IDN,a>
+b       <IDN,b>
+c       <IDN,c>
+
+>>> Phase 2: Syntax Analysis
+1       #int    reduction
+2       compUnit#int    move
+3       int#Ident       reduction
+4       funcType#Ident  move
+5       Ident#( move
+6       (#)     move
+7       )#{     move
+8       {#int   reduction
+9       blockItems#int  move
+10      int#Ident       reduction
+11      bType#Ident     move
+12      Ident#= move
+13      =#IntConst      move
+14      IntConst#+      move
+15      +#IntConst      move
+16      IntConst#*      move
+17      *#IntConst      move
+18      IntConst#;      reduction
+19      number#;        reduction
+20      primaryExp#;    reduction
+21      unaryExp#;      reduction
+22      mulExp#;        reduction
+23      addExp#;        reduction
+24      exp#;   reduction
+25      initVal#;       reduction
+26      varDef#;        reduction
+27      varDefs#;       move
+28      ;#int   reduction
+29      varDecl#int     reduction
+30      blockItem#int   reduction
+31      blockItems#int  move
+32      int#Ident       reduction
+33      bType#Ident     move
+34      Ident#= move
+35      =#(     move
+36      (#IntConst      move
+37      IntConst#-      move
+38      -#IntConst      move
+39      IntConst#)      move
+40      )#/     move
+41      /#IntConst      move
+42      IntConst#;      reduction
+43      number#;        reduction
+44      primaryExp#;    reduction
+45      unaryExp#;      reduction
+46      mulExp#;        reduction
+47      addExp#;        reduction
+48      exp#;   reduction
+49      initVal#;       reduction
+50      varDef#;        reduction
+51      varDefs#;       move
+52      ;#int   reduction
+53      varDecl#int     reduction
+54      blockItem#int   reduction
+55      blockItems#int  move
+56      int#Ident       reduction
+57      bType#Ident     move
+58      Ident#= move
+59      =#IntConst      move
+60      IntConst#%      move
+61      %#IntConst      move
+62      IntConst#;      reduction
+63      number#;        reduction
+64      primaryExp#;    reduction
+65      unaryExp#;      reduction
+66      mulExp#;        reduction
+67      addExp#;        reduction
+68      exp#;   reduction
+69      initVal#;       reduction
+70      varDef#;        reduction
+71      varDefs#;       move
+72      ;#return        reduction
+73      varDecl#return  reduction
+74      blockItem#return        reduction
+75      blockItems#return       move
+76      return#IntConst move
+77      IntConst#;      reduction
+78      number#;        reduction
+79      primaryExp#;    reduction
+80      unaryExp#;      reduction
+81      mulExp#;        reduction
+82      addExp#;        reduction
+83      exp#;   move
+84      ;#}     reduction
+85      stmt#}  reduction
+86      blockItem#}     reduction
+87      blockItems#}    move
+88      }#$     reduction
+89      block#$ reduction
+90      funcDef#$       reduction
+91      compUnit#$      reduction
+92      Program#$       accept
+
+>>> Phase 3: Intermediate Code Generation
+declare i32 @getint()
+declare i32 @getch()
+declare i32 @getarray(i32*)
+declare void @putint(i32)
+declare void @putch(i32)
+declare void @putarray(i32, i32*)
+declare void @starttime()
+declare void @stoptime()
+
+define i32 @main() {
+main_ENTRY:
+  %a = alloca i32
+  %b = alloca i32
+  %c = alloca i32
+  %tmp0 = mul i32 4, 5
+  %tmp1 = add i32 3, %tmp0
+  store i32 %tmp1, i32* %a
+  %tmp2 = sub i32 10, 2
+  %tmp3 = sdiv i32 %tmp2, 3
+  store i32 %tmp3, i32* %b
+  %tmp4 = srem i32 15, 4
+  store i32 %tmp4, i32* %c
+  ret i32 0
+}

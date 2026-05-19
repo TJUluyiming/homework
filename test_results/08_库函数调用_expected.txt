@@ -1,0 +1,105 @@
+﻿>>> Phase 1: Lexical Analysis
+int     <KW,1>
+main    <KW,5>
+(       <SE,20>
+)       <SE,21>
+{       <SE,22>
+int     <KW,1>
+a       <IDN,a>
+=       <OP,11>
+getint  <IDN,getint>
+(       <SE,20>
+)       <SE,21>
+;       <SE,24>
+putint  <IDN,putint>
+(       <SE,20>
+a       <IDN,a>
+)       <SE,21>
+;       <SE,24>
+return  <KW,3>
+0       <INT,0>
+;       <SE,24>
+}       <SE,23>
+
+>>> Symbol Table
+a       <IDN,a>
+getint  <IDN,getint>
+putint  <IDN,putint>
+
+>>> Phase 2: Syntax Analysis
+1       #int    reduction
+2       compUnit#int    move
+3       int#Ident       reduction
+4       funcType#Ident  move
+5       Ident#( move
+6       (#)     move
+7       )#{     move
+8       {#int   reduction
+9       blockItems#int  move
+10      int#Ident       reduction
+11      bType#Ident     move
+12      Ident#= move
+13      =#Ident move
+14      Ident#( move
+15      (#)     move
+16      )#;     reduction
+17      unaryExp#;      reduction
+18      mulExp#;        reduction
+19      addExp#;        reduction
+20      exp#;   reduction
+21      initVal#;       reduction
+22      varDef#;        reduction
+23      varDefs#;       move
+24      ;#Ident reduction
+25      varDecl#Ident   reduction
+26      blockItem#Ident reduction
+27      blockItems#Ident        move
+28      Ident#( move
+29      (#Ident move
+30      Ident#) move
+31      )#;     reduction
+32      unaryExp#;      reduction
+33      mulExp#;        reduction
+34      addExp#;        reduction
+35      exp#;   move
+36      ;#return        reduction
+37      stmt#return     reduction
+38      blockItem#return        reduction
+39      blockItems#return       move
+40      return#IntConst move
+41      IntConst#;      reduction
+42      number#;        reduction
+43      primaryExp#;    reduction
+44      unaryExp#;      reduction
+45      mulExp#;        reduction
+46      addExp#;        reduction
+47      exp#;   move
+48      ;#}     reduction
+49      stmt#}  reduction
+50      blockItem#}     reduction
+51      blockItems#}    move
+52      }#$     reduction
+53      block#$ reduction
+54      funcDef#$       reduction
+55      compUnit#$      reduction
+56      Program#$       accept
+
+>>> Phase 3: Intermediate Code Generation
+declare i32 @getint()
+declare i32 @getch()
+declare i32 @getarray(i32*)
+declare void @putint(i32)
+declare void @putch(i32)
+declare void @putarray(i32, i32*)
+declare void @starttime()
+declare void @stoptime()
+
+define i32 @main() {
+main_ENTRY:
+  %a = alloca i32
+  %tmp0 = call i32 @getint()
+  store i32 %tmp0, i32* %a
+  %tmp1 = load i32, i32* %a
+  call void @putint(i32 %tmp1)
+  ret i32 0
+}

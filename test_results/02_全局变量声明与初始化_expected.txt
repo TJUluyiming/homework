@@ -1,0 +1,187 @@
+﻿>>> Phase 1: Lexical Analysis
+int     <KW,1>
+a       <IDN,a>
+;       <SE,24>
+int     <KW,1>
+b       <IDN,b>
+=       <OP,11>
+100     <INT,100>
+;       <SE,24>
+const   <KW,4>
+int     <KW,1>
+c       <IDN,c>
+=       <OP,11>
+200     <INT,200>
+;       <SE,24>
+float   <KW,6>
+d       <IDN,d>
+;       <SE,24>
+float   <KW,6>
+e       <IDN,e>
+=       <OP,11>
+3.14159 <FLOAT,3.14159>
+;       <SE,24>
+const   <KW,4>
+float   <KW,6>
+f       <IDN,f>
+=       <OP,11>
+2.71828 <FLOAT,2.71828>
+;       <SE,24>
+int     <KW,1>
+main    <KW,5>
+(       <SE,20>
+)       <SE,21>
+{       <SE,22>
+return  <KW,3>
+0       <INT,0>
+;       <SE,24>
+}       <SE,23>
+
+>>> Symbol Table
+a       <IDN,a>
+b       <IDN,b>
+c       <IDN,c>
+d       <IDN,d>
+e       <IDN,e>
+f       <IDN,f>
+
+>>> Phase 2: Syntax Analysis
+1       #int    reduction
+2       compUnit#int    move
+3       int#Ident       reduction
+4       bType#Ident     move
+5       Ident#; reduction
+6       varDef#;        reduction
+7       varDefs#;       move
+8       ;#int   reduction
+9       varDecl#int     reduction
+10      decl#int        reduction
+11      compUnit#int    move
+12      int#Ident       reduction
+13      bType#Ident     move
+14      Ident#= move
+15      =#IntConst      move
+16      IntConst#;      reduction
+17      number#;        reduction
+18      primaryExp#;    reduction
+19      unaryExp#;      reduction
+20      mulExp#;        reduction
+21      addExp#;        reduction
+22      exp#;   reduction
+23      initVal#;       reduction
+24      varDef#;        reduction
+25      varDefs#;       move
+26      ;#const reduction
+27      varDecl#const   reduction
+28      decl#const      reduction
+29      compUnit#const  move
+30      const#int       move
+31      int#Ident       reduction
+32      bType#Ident     move
+33      Ident#= move
+34      =#IntConst      move
+35      IntConst#;      reduction
+36      number#;        reduction
+37      primaryExp#;    reduction
+38      unaryExp#;      reduction
+39      mulExp#;        reduction
+40      addExp#;        reduction
+41      constExp#;      reduction
+42      constInitVal#;  reduction
+43      constDef#;      reduction
+44      constDefs#;     move
+45      ;#float reduction
+46      constDecl#float reduction
+47      decl#float      reduction
+48      compUnit#float  move
+49      float#Ident     reduction
+50      bType#Ident     move
+51      Ident#; reduction
+52      varDef#;        reduction
+53      varDefs#;       move
+54      ;#float reduction
+55      varDecl#float   reduction
+56      decl#float      reduction
+57      compUnit#float  move
+58      float#Ident     reduction
+59      bType#Ident     move
+60      Ident#= move
+61      =#floatConst    move
+62      floatConst#;    reduction
+63      number#;        reduction
+64      primaryExp#;    reduction
+65      unaryExp#;      reduction
+66      mulExp#;        reduction
+67      addExp#;        reduction
+68      exp#;   reduction
+69      initVal#;       reduction
+70      varDef#;        reduction
+71      varDefs#;       move
+72      ;#const reduction
+73      varDecl#const   reduction
+74      decl#const      reduction
+75      compUnit#const  move
+76      const#float     move
+77      float#Ident     reduction
+78      bType#Ident     move
+79      Ident#= move
+80      =#floatConst    move
+81      floatConst#;    reduction
+82      number#;        reduction
+83      primaryExp#;    reduction
+84      unaryExp#;      reduction
+85      mulExp#;        reduction
+86      addExp#;        reduction
+87      constExp#;      reduction
+88      constInitVal#;  reduction
+89      constDef#;      reduction
+90      constDefs#;     move
+91      ;#int   reduction
+92      constDecl#int   reduction
+93      decl#int        reduction
+94      compUnit#int    move
+95      int#Ident       reduction
+96      funcType#Ident  move
+97      Ident#( move
+98      (#)     move
+99      )#{     move
+100     {#return        reduction
+101     blockItems#return       move
+102     return#IntConst move
+103     IntConst#;      reduction
+104     number#;        reduction
+105     primaryExp#;    reduction
+106     unaryExp#;      reduction
+107     mulExp#;        reduction
+108     addExp#;        reduction
+109     exp#;   move
+110     ;#}     reduction
+111     stmt#}  reduction
+112     blockItem#}     reduction
+113     blockItems#}    move
+114     }#$     reduction
+115     block#$ reduction
+116     funcDef#$       reduction
+117     compUnit#$      reduction
+118     Program#$       accept
+
+>>> Phase 3: Intermediate Code Generation
+declare i32 @getint()
+declare i32 @getch()
+declare i32 @getarray(i32*)
+declare void @putint(i32)
+declare void @putch(i32)
+declare void @putarray(i32, i32*)
+declare void @starttime()
+declare void @stoptime()
+
+@a = global i32 0
+@b = global i32 100
+@c = global i32 200
+@d = global float 0.000000
+@e = global float 3.141590
+@f = global float 2.718280
+define i32 @main() {
+main_ENTRY:
+  ret i32 0
+}

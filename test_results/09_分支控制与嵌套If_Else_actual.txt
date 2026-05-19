@@ -1,0 +1,105 @@
+﻿>>> Phase 1: Lexical Analysis
+int	<KW,1>
+a	<IDN,a>
+=	<OP,11>
+10	<INT,10>
+;	<SE,24>
+float	<KW,6>
+b	<IDN,b>
+=	<OP,11>
+3.14	<FLOAT,3.14>
+;	<SE,24>
+int	<KW,1>
+main	<KW,5>
+(	<SE,20>
+)	<SE,21>
+{	<SE,22>
+return	<KW,3>
+0	<INT,0>
+;	<SE,24>
+}	<SE,23>
+
+>>> Symbol Table
+a	<IDN,a>
+b	<IDN,b>
+
+>>> Phase 2: Syntax Analysis
+1	#int	reduction
+2	compUnit#int	move
+3	int#Ident	reduction
+4	bType#Ident	move
+5	Ident#=	move
+6	=#IntConst	move
+7	IntConst#;	reduction
+8	number#;	reduction
+9	primaryExp#;	reduction
+10	unaryExp#;	reduction
+11	mulExp#;	reduction
+12	addExp#;	reduction
+13	exp#;	reduction
+14	initVal#;	reduction
+15	varDef#;	reduction
+16	varDefs#;	move
+17	;#float	reduction
+18	varDecl#float	reduction
+19	decl#float	reduction
+20	compUnit#float	move
+21	float#Ident	reduction
+22	bType#Ident	move
+23	Ident#=	move
+24	=#floatConst	move
+25	floatConst#;	reduction
+26	number#;	reduction
+27	primaryExp#;	reduction
+28	unaryExp#;	reduction
+29	mulExp#;	reduction
+30	addExp#;	reduction
+31	exp#;	reduction
+32	initVal#;	reduction
+33	varDef#;	reduction
+34	varDefs#;	move
+35	;#int	reduction
+36	varDecl#int	reduction
+37	decl#int	reduction
+38	compUnit#int	move
+39	int#Ident	reduction
+40	funcType#Ident	move
+41	Ident#(	move
+42	(#)	move
+43	)#{	move
+44	{#return	reduction
+45	blockItems#return	move
+46	return#IntConst	move
+47	IntConst#;	reduction
+48	number#;	reduction
+49	primaryExp#;	reduction
+50	unaryExp#;	reduction
+51	mulExp#;	reduction
+52	addExp#;	reduction
+53	exp#;	move
+54	;#}	reduction
+55	stmt#}	reduction
+56	blockItem#}	reduction
+57	blockItems#}	move
+58	}#$	reduction
+59	block#$	reduction
+60	funcDef#$	reduction
+61	compUnit#$	reduction
+62	Program#$	accept
+
+>>> Phase 3: Intermediate Code Generation
+declare i32 @getint()
+declare i32 @getch()
+declare i32 @getarray(i32*)
+declare void @putint(i32)
+declare void @putch(i32)
+declare void @putarray(i32, i32*)
+declare void @starttime()
+declare void @stoptime()
+
+@a = global i32 10
+@b = global float 3.140000
+define i32 @main() {
+main_ENTRY:
+  ret i32 0
+}
