@@ -1,14 +1,13 @@
-﻿<#
+<#
 C-- 编译器自动测试脚本
 功能：批量运行所有测试用例，自动对比输出，生成测试报告
 #>
 
 # ==================== 配置项 ====================
-$COMPILER_CMD = "g++ -std=c++17 -Wall -g -static lexer.cpp parser.cpp ir_visitor.cpp main.cpp -o mycompiler.exe"
+$COMPILER_CMD = "g++ -std=c++17 -Wall -g -static -I./include lexer.cpp parser.cpp ir_visitor.cpp main.cpp src/BasicBlock.cpp src/Constant.cpp src/Function.cpp src/GlobalVariable.cpp src/Instruction.cpp src/IRprinter.cpp src/Module.cpp src/Type.cpp src/User.cpp src/Value.cpp -o mycompiler.exe 2>&1"
 $MAIN_FILE = "main.cpp"
 $TEST_RESULTS_DIR = "test_results"
 $TEMP_MAIN_FILE = "main_temp.cpp"
-
 # ==================== 测试用例定义（全部使用单引号here-string） ====================
 $TEST_CASES = @(
     # 1. 基础功能测试
