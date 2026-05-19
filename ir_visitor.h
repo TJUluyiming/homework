@@ -153,7 +153,7 @@ private:
     void extractFuncRParams(ParseTree* node, std::vector<ParseTree*>& params); // 新增
 
 public:
-    IRVisitor(); // <--- 新增构造函数声明
+    IRVisitor(); 
     void visit(ParseTree* node);
 };
 
