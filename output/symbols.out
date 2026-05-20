@@ -1,0 +1,13 @@
+ID	Name	Type	Line	Col
+----------------------------------------
+1	const	KW	0	0
+2	else	KW	0	0
+3	float	KW	0	0
+4	if	KW	0	0
+5	int	KW	0	0
+6	main	KW	0	0
+7	return	KW	0	0
+8	void	KW	0	0
+9	a	IDN	1	5
+10	10	INT	1	9
+11	0	INT	4	9
