@@ -1,0 +1,82 @@
+# C-- 语法产生式（指导书 1-33，* / ? / 列表已展开；34-36 词法规则见 lexer）
+# 格式：序号. 左部 -> 右部符号（空右部表示 ε）
+# SLR 增广文法
+
+0. Program' -> Program
+1. Program -> compUnit
+2. compUnit -> compUnit decl
+3. compUnit -> compUnit funcDef
+4. compUnit ->
+5. decl -> constDecl
+6. decl -> varDecl
+7. constDecl -> const bType constDefs ;
+8. constDefs -> constDef
+9. constDefs -> constDefs , constDef
+10. bType -> int
+11. bType -> float
+12. constDef -> Ident = constInitVal
+13. constInitVal -> constExp
+14. varDecl -> bType varDefs ;
+15. varDefs -> varDef
+16. varDefs -> varDefs , varDef
+17. varDef -> Ident
+18. varDef -> Ident = initVal
+19. initVal -> exp
+20. funcDef -> funcType Ident ( ) block
+21. funcDef -> funcType Ident ( funcFParams ) block
+22. funcType -> void
+23. funcType -> int
+24. funcFParams -> funcFParams , funcFParam
+25. funcFParams -> funcFParam
+26. funcFParam -> bType Ident
+27. block -> { blockItems }
+28. blockItems -> blockItems blockItem
+29. blockItems ->
+30. blockItem -> decl
+31. blockItem -> stmt
+32. stmt -> lVal = exp ;
+33. stmt -> exp ;
+34. stmt -> ;
+35. stmt -> block
+36. stmt -> if ( cond ) stmt
+37. stmt -> if ( cond ) stmt else stmt
+38. stmt -> return ;
+39. stmt -> return exp ;
+40. exp -> addExp
+41. cond -> lOrExp
+42. lVal -> Ident
+43. primaryExp -> ( exp )
+44. primaryExp -> lVal
+45. primaryExp -> number
+46. number -> IntConst
+47. number -> floatConst
+48. unaryExp -> primaryExp
+49. unaryExp -> Ident ( )
+50. unaryExp -> Ident ( funcRParams )
+51. unaryExp -> unaryOp unaryExp
+52. unaryOp -> +
+53. unaryOp -> -
+54. unaryOp -> !
+55. funcRParams -> funcRParams , funcRParam
+56. funcRParams -> funcRParam
+57. funcRParam -> exp
+58. mulExp -> unaryExp
+59. mulExp -> mulExp * unaryExp
+60. mulExp -> mulExp / unaryExp
+61. mulExp -> mulExp % unaryExp
+62. addExp -> mulExp
+63. addExp -> addExp + mulExp
+64. addExp -> addExp - mulExp
+65. relExp -> addExp
+66. relExp -> relExp < addExp
+67. relExp -> relExp > addExp
+68. relExp -> relExp <= addExp
+69. relExp -> relExp >= addExp
+70. eqExp -> relExp
+71. eqExp -> eqExp == relExp
+72. eqExp -> eqExp != relExp
+73. lAndExp -> eqExp
+74. lAndExp -> lAndExp && eqExp
+75. lOrExp -> lAndExp
+76. lOrExp -> lOrExp || lAndExp
+77. constExp -> addExp
